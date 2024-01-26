@@ -1062,8 +1062,12 @@ sub ensuredosdir($$) {
 	return $ret;
 }
 
-sub Usage() {
-	print STDERR "
+sub Usage(@) {
+	my ($fh) = (@_);
+
+	$fh = $fh // *STDERR;
+
+	print $fh "
 
 	adf <command> [option...] <imagename> [<filespec>...]
 
@@ -1844,7 +1848,9 @@ sub safeDOSUnixPath($) {
 
 my $command = shift or die "Missing command";
 
-if ($command eq "info") {
+if ($command eq "help" || $command eq "--help") {
+	Usage(*STDOUT);
+} elsif ($command eq "info") {
 	command_info(@ARGV);
 } elsif ($command eq "read") {
 	command_read(@ARGV);
@@ -1853,6 +1859,7 @@ if ($command eq "info") {
 } elsif ($command eq "form") {
 	command_form(@ARGV);
 } else {
+	Usage();
 	die "Unrecognised command \"$command\"";
 }
 
