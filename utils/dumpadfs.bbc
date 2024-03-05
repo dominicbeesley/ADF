@@ -1,0 +1,78 @@
+OSCLI("FADFS"):OSCLI("DISMOUNT"):OSCLI("DISMOUNT")
+OSWORD=&FFF1
+MO.3
+BUFSIZ%=4096
+DIM map% 512, block% 20, buf% BUFSIZ%
+D%=0
+PROCreadsecs(D%, map%, 0, 2)
+:
+nfs%=(map%?&1FE)/3
+nsec%=(map%!&FC)AND&00FFFFFF
+P. "sectors : ",STR$nsec%
+P. "size    : ",STR$(nsec%/4);"K"
+free%=0
+IF nfs%>0 THENFOR I%=0TOnfs%-1:free%=free%+FNfsm_l(I%):NEXT
+P. "free    : ",STR$(free%/4);"K"
+use%=nsec%-free%
+P. "used    : ",STR$(use%/4);"K"
+
+S%=0:I%=0:REPEAT
+    IF I%=nfs% THEN E%=nsec%-1:L%=0 ELSE E%=FNfsm_s(I%):L%=FNfsm_l(I%)
+    P. STR$~S%;" => ";STR$~(E%-1);" [len=";E%-S%;", skip=";STR$~L%;"]"
+    
+
+    S%=E%+L%
+
+
+    I%=I%+1
+UNTIL I%>=nfs%
+
+
+REMPROChex(map%, 0, 512)
+:
+END
+:
+DEFFNfsm_s(I%):=(map%!(I%*3))AND&00FFFFFF
+DEFFNfsm_l(I%):=(map%!(256+I%*3))AND&00FFFFFF
+:
+DEFPROCreadsecs(D%, A%, S%, N%)
+block%?0=0
+block%!1=A%
+block%?5=8
+block%!8=S%
+block%?6=((D% AND 7) * 32) OR ((block%?10) AND &1F)
+block%?7=block%?9
+block%?9=N%
+block%?10=0
+block%?11=0
+A%=&72:X%=block%:Y%=block%DIV256:CALL OSWORD
+IF(block%?0)<>0THENP."ERROR "; STR$~(block%?0); " FROM OSWORD 8":STOP
+ENDPROC
+:
+DEFPROChex(A%, L%, N%)
+LOCAL X%,B%,C%
+X%=L%
+B%=A%
+C%=N%
+REPEAT
+    IF N%<=0 ENDPROC
+    PRINT FNLPAD(8, STR$~(L%AND&FFFFFFF0));" | ";
+    PRINT FNLPAD(3*(L% AND &F),"");
+    REPEAT
+        PRINTFNLPAD(3,STR$~(?A%));
+        N%=N%-1
+        A%=A%+1
+        L%=L%+1
+    UNTIL (L% AND &F)=0 OR N%<=0
+    P.
+    
+UNTIL FALSE
+
+
+ENDPROC
+:
+DEFFNLPAD(N%,S$)
+LOCALR$
+IF N%<=0THENR$=""
+IF(LEN(S$)>=N%)THENR$=MID$(S$,1,N%)ELSER$=STRING$(N%-LEN(S$)," ")+S$
+=R$
