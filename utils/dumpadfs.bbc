@@ -44,7 +44,7 @@ DEFPROCcopyblock(D%,S%,L%)
         M%=L%:IF M%>BUFSIZ%DIV256THENM%=BUFSIZ%DIV256
         PROCos("FADFS"):PROCos("DISMOUNT"):PROCos("DISMOUNT")
         PROCreadsecs(D%,buf%,S%,M%)
-        PROCos(DESTFS$):PROCos(DESTFS$):PROCos("CAT")
+        PROCos(DESTFS$):PROCos(DESTFS$)
         PTR#F%=S%*256
         PROCputbytes(buf%,M%*256)
 
