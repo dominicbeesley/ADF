@@ -1,10 +1,15 @@
-OSCLI("FADFS"):OSCLI("DISMOUNT"):OSCLI("DISMOUNT")
-OSWORD=&FFF1
 MO.3
 BUFSIZ%=4096
-DIM map% 512, block% 20, buf% BUFSIZ%
+DIM map% 512, block% 20, buf% BUFSIZ%, str% 100, code% 100
+OSWORD=&FFF1:OSGBPB=&FFD1:OSCL=&FFF7:BRKV=&202:OSWRCH=&FFEE
+PROCass
+DESTFS$="*BLFS"
+PROCos(DESTFS$)
+F%=OPENOUT"IMG"
 D%=0
+PROCos("FADFS"):PROCos("DISMOUNT"):PROCos("DISMOUNT")
 PROCreadsecs(D%, map%, 0, 2)
+REMPROChex(map%, 0, 512)
 :
 nfs%=(map%?&1FE)/3
 nsec%=(map%!&FC)AND&00FFFFFF
@@ -19,7 +24,8 @@ P. "used    : ",STR$(use%/4);"K"
 S%=0:I%=0:REPEAT
     IF I%=nfs% THEN E%=nsec%-1:L%=0 ELSE E%=FNfsm_s(I%):L%=FNfsm_l(I%)
     P. STR$~S%;" => ";STR$~(E%-1);" [len=";E%-S%;", skip=";STR$~L%;"]"
-    
+
+    PROCcopyblock(D%,S%,E%-S%)    
 
     S%=E%+L%
 
@@ -31,6 +37,23 @@ UNTIL I%>=nfs%
 REMPROChex(map%, 0, 512)
 :
 END
+DEFPROCcopyblock(D%,S%,L%)
+    LOCAL M%
+    IF L%<=0 THEN ENDPROC
+    REPEAT
+        M%=L%:IF M%>BUFSIZ%DIV256THENM%=BUFSIZ%DIV256
+        PROCos("FADFS"):PROCos("DISMOUNT"):PROCos("DISMOUNT")
+        PROCreadsecs(D%,buf%,S%,M%)
+        PROCos(DESTFS$):PROCos(DESTFS$):PROCos("CAT")
+        PTR#F%=S%*256
+        PROCputbytes(buf%,M%*256)
+
+        P. "..."; S%
+        S%=S%+M%
+        L%=L%-M%
+    UNTIL L%=0
+
+ENDPROC
 :
 DEFFNfsm_s(I%):=(map%!(I%*3))AND&00FFFFFF
 DEFFNfsm_l(I%):=(map%!(256+I%*3))AND&00FFFFFF
@@ -47,6 +70,13 @@ block%?10=0
 block%?11=0
 A%=&72:X%=block%:Y%=block%DIV256:CALL OSWORD
 IF(block%?0)<>0THENP."ERROR "; STR$~(block%?0); " FROM OSWORD 8":STOP
+ENDPROC
+:
+DEFPROCputbytes(A%,N%)
+block%?0=F%
+block%!1=A%
+block%!5=N%
+A%=2:X%=block%:Y%=block%DIV256:CALLOSGBPB
 ENDPROC
 :
 DEFPROChex(A%, L%, N%)
@@ -76,3 +106,33 @@ LOCALR$
 IF N%<=0THENR$=""
 IF(LEN(S$)>=N%)THENR$=MID$(S$,1,N%)ELSER$=STRING$(N%-LEN(S$)," ")+S$
 =R$
+:
+DEFPROCos(A$):$str%=A$:P.">";A$;:CALLoscli:P.">";:ENDPROC
+:
+DEFPROCass
+LOCALI%:FORI%=0TO3STEP3:P%=code%:[OPTI%
+.oscli:
+LDA BRKV+1:PHA:LDA BRKV:PHA
+LDA #ex MOD 256:STA BRKV:LDA#ex DIV 256:STA BRKV+1
+TSX
+STX stk
+.again
+LDX#str%MOD256:LDY#str%DIV256:JSROSCL
+JMP ok
+.ex
+LDX stk
+TXS
+LDA #ASC("!")
+JSR OSWRCH
+JMP again
+.ok
+LDX stk
+TXS
+PLA
+STA BRKV
+PLA
+STA BRKV+1
+RTS
+
+.stk:EQUB 0
+]:NEXT:ENDPROC
